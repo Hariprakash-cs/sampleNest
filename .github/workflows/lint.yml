@@ -24,5 +24,17 @@ jobs:
       - name: Run lint checks
         run: npm run lint
 
-      - name: Run unit tests
-        run: npm test
+      - name: Run unit tests and generate coverage report
+        run: |
+          npm run test -- --coverage
+          # Ensure coverage report exists before proceeding
+          if [ ! -f ./apps/authentication/coverage/lcov.info ]; then
+            echo "Coverage report not found!";
+            exit 1;
+          fi
+
+      - name: Upload coverage to Coveralls
+        uses: romeovs/lcov-reporter-action@v0.2.21
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: ./apps/authentication/coverage/lcov.info
