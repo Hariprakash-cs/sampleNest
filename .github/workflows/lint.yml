@@ -28,7 +28,7 @@ jobs:
         run: |
           npm run test -- --coverage
           # Ensure coverage report exists before proceeding
-          if [ ! -f ./apps/authentication/coverage/lcov.info ]; then
+          if [ ! -f ./coverage/lcov.info ]; then
             echo "Coverage report not found!";
             exit 1;
           fi
