@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1731585991853" clover="3.2.0">
-  <project timestamp="1731585991853" name="All files">
-    <metrics statements="95" coveredstatements="4" conditionals="16" coveredconditionals="0" methods="21" coveredmethods="0" elements="132" coveredelements="4" complexity="0" loc="95" ncloc="95" packages="4" files="12" classes="12"/>
+<coverage generated="1731587244374" clover="3.2.0">
+  <project timestamp="1731587244374" name="All files">
+    <metrics statements="96" coveredstatements="4" conditionals="16" coveredconditionals="0" methods="21" coveredmethods="0" elements="133" coveredelements="4" complexity="0" loc="96" ncloc="96" packages="4" files="12" classes="12"/>
     <package name="src">
-      <metrics statements="13" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
+      <metrics statements="14" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
       <file name="app.module.ts" path="/Users/hari.prakash/Documents/learnings/nestjs/sampleNest/src/app.module.ts">
         <metrics statements="4" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="1" count="0" type="stmt"/>
@@ -12,13 +12,14 @@
         <line num="8" count="0" type="stmt"/>
       </file>
       <file name="main.ts" path="/Users/hari.prakash/Documents/learnings/nestjs/sampleNest/src/main.ts">
-        <metrics statements="9" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <metrics statements="10" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
         <line num="1" count="0" type="stmt"/>
         <line num="2" count="0" type="stmt"/>
         <line num="3" count="0" type="stmt"/>
         <line num="6" count="0" type="stmt"/>
         <line num="7" count="0" type="stmt"/>
         <line num="8" count="0" type="stmt"/>
+        <line num="9" count="0" type="stmt"/>
         <line num="11" count="0" type="stmt"/>
         <line num="12" count="0" type="stmt"/>
         <line num="14" count="0" type="stmt"/>
