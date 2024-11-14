@@ -33,8 +33,11 @@ jobs:
             exit 1;
           fi
 
-      - name: Upload coverage to Coveralls
-        uses: romeovs/lcov-reporter-action@v0.2.21
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          lcov-file: ./coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-coverage-report
+          fail_ci_if_error: true
