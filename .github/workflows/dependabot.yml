@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # Use npm (or yarn, etc.) for dependency management
+    directory: "/" # Directory of your `package.json`
+    schedule:
+      interval: "daily" # Check updates daily (can be "weekly", "monthly")
+    pull-request-branch-name: "dependabot/{dependency-name}"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    open-pull-requests-limit: 5
