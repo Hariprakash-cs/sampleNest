@@ -8,7 +8,7 @@ on:
 permissions:
   pull-requests: write
   contents: read
-  
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -76,14 +76,15 @@ jobs:
         run: |
           # Combine both summaries
           COMMENT_BODY="${{ steps.parse_test.outputs.test_summary }}\n\n${{ steps.parse_coverage.outputs.coverage_summary }}"
-          PR_URL="${{ github.event.pull_request.url }}/comments"
           echo "Comment body to be posted:"
           echo "$COMMENT_BODY"
-          # Post the combined summary as a comment on the PR
-          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
                -H "Content-Type: application/json" \
                -d "{\"body\": \"$COMMENT_BODY\"}" \
-               "$PR_URL"
+               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
+
           if [ "$RESPONSE" -ne 201 ]; then
             echo "Failed to post comment. HTTP Status: $RESPONSE"
             echo "Response Body:"
