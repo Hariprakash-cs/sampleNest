@@ -91,18 +91,6 @@ jobs:
             echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${funcs_pct}% | ${lines_pct}% |" >> file_coverage.md
           done
 
-      - name: Parse lcov.info for detailed coverage
-        id: parse_lcov
-        run: |
-            # Extract coverage data from lcov.info
-            COVERAGE_PERCENT=$(grep -oP "lines:\d+,\d+" coverage/lcov-report/lcov-report.html | sed -E "s/lines:(\d+),(\d+)/\1\/\2/" | awk -F/ '{print $1/$2}' | xargs -I {} echo "{} * 100" | bc)
-            
-            # Format as a markdown table
-            echo "### Detailed lcov Report" > lcov_summary.md
-            echo "| Metric        | Coverage |" >> lcov_summary.md
-            echo "|---------------|----------|" >> lcov_summary.md
-            echo "| Line Coverage | ${COVERAGE_PERCENT}% |" >> lcov_summary.md
-
       - name: Combine summaries and post as PR comment
         if: github.event_name == 'pull_request'
         env:
