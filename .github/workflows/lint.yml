@@ -73,9 +73,18 @@ jobs:
           # Combine both summaries
           COMMENT_BODY="${{ steps.parse_test.outputs.test_summary }}\n\n${{ steps.parse_coverage.outputs.coverage_summary }}"
           PR_URL="${{ github.event.pull_request.url }}/comments"
-
+          echo "Comment body to be posted:"
+          echo "$COMMENT_BODY"
           # Post the combined summary as a comment on the PR
           curl -s -H "Authorization: token $GITHUB_TOKEN" \
                -H "Content-Type: application/json" \
                -d "{\"body\": \"$COMMENT_BODY\"}" \
                "$PR_URL"
+          if [ "$RESPONSE" -ne 201 ]; then
+            echo "Failed to post comment. HTTP Status: $RESPONSE"
+            echo "Response Body:"
+            cat response.txt
+            exit 1
+          else
+            echo "Comment posted successfully."
+          fi
