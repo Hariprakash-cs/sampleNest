@@ -111,11 +111,13 @@ jobs:
           # Read summaries from files
           TEST_SUMMARY=$(<test_summary.md)
           COVERAGE_SUMMARY=$(<coverage_summary.md)
-          FILE_COVERAGE=$(<file_coverage.md)
-          LCOV_SUMMARY=$(<lcov_summary.md)
+          FILE_COVERAGE=$(<file_coverage.md>)
+
+          # Add link to the detailed lcov report (index.html)
+          LCOV_REPORT_LINK="View the detailed coverage report here: https://github.com/${{ github.repository }}/blob/${{ github.sha }}/coverage/lcov-report/index.html"
 
           # Combine summaries into the comment body
-          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n$LCOV_SUMMARY"
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n$LCOV_REPORT_LINK"
           echo "Comment body to be posted:"
           echo "$COMMENT_BODY"
 
