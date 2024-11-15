@@ -100,9 +100,10 @@ jobs:
           TEST_SUMMARY=$(<test_summary.md)
           COVERAGE_SUMMARY=$(<coverage_summary.md)
           FILE_COVERAGE=$(<file_coverage.md)
+          LCOV_SUMMARY=$(<lcov_summary.md)
 
           # Combine summaries into the comment body
-          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE"
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n$LCOV_SUMMARY"
           echo "Comment body to be posted:"
           echo "$COMMENT_BODY"
 
