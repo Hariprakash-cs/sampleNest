@@ -1,4 +1,4 @@
-name: Unit and Integration Tests with Detailed Coverage and Summary
+name: Unit and Integration Tests with Full Report
 
 on:
   pull_request:
@@ -25,47 +25,45 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run unit tests and generate lcov report
+      - name: Run unit tests and generate reports
         run: |
-          # Run tests and generate coverage report
-          npm test -- --coverage --coverageReporters=lcov --json --outputFile=test-results.json
+          # Run tests and generate coverage reports
+          npm test -- --coverage --coverageReporters=cobertura --json --outputFile=test-results.json
 
-      - name: Parse test results summary
+      - name: Install xmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+
+      - name: Parse test results for summary
         id: parse_test
         run: |
-          # Extract test results summary from JSON
+          # Extract summary of test results
           TOTAL_TESTS=$(jq '.numTotalTests' test-results.json)
           PASSED_TESTS=$(jq '.numPassedTests' test-results.json)
           FAILED_TESTS=$(jq '.numFailedTests' test-results.json)
           SKIPPED_TESTS=$(jq '.numPendingTests' test-results.json)
 
-          # Format test summary as markdown table
-          echo "### Test Results Summary" > test_summary.md
+          # Format the test results as a markdown table
+          echo "### Unit Test Results Summary" > test_summary.md
           echo "| Total Tests | Passed | Failed | Skipped |" >> test_summary.md
           echo "|-------------|--------|--------|---------|" >> test_summary.md
           echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
 
-          # Set output for next step
-          echo "::set-output name=test_summary::$(cat test_summary.md)"
-
-      - name: Parse overall coverage percentage
-        id: parse_coverage_summary
+      - name: Parse coverage report for summary
+        id: parse_coverage
         run: |
-          # Extract line coverage percentage from lcov.info
-          COVERAGE_PERCENT=$(grep -Po 'LF:\K\d+' coverage/lcov.info | awk '{s+=$1} END {print s}')
-          COVERED_LINES=$(grep -Po 'LH:\K\d+' coverage/lcov.info | awk '{s+=$1} END {print s}')
-          COVERAGE_TOTAL=$(echo "scale=2; ($COVERED_LINES / $COVERAGE_PERCENT) * 100" | bc)
+          # Extract line coverage percentage from cobertura XML
+          COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          COVERAGE_PERCENT=$(echo "$COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
 
-          # Format overall coverage summary as markdown table
+          # Format the coverage summary as a markdown table
           echo "### Coverage Summary" > coverage_summary.md
           echo "| Metric        | Coverage |" >> coverage_summary.md
           echo "|---------------|----------|" >> coverage_summary.md
-          echo "| Line Coverage | ${COVERAGE_TOTAL}% |" >> coverage_summary.md
+          echo "| Line Coverage | ${COVERAGE_PERCENT}% |" >> coverage_summary.md
 
-          # Set output for next step
-          echo "::set-output name=coverage_summary::$(cat coverage_summary.md)"
-
-      - name: Parse file-level coverage metrics
+      - name: Parse detailed file-level coverage
         id: parse_file_coverage
         run: |
           # Initialize file-level coverage markdown
@@ -73,38 +71,42 @@ jobs:
           echo "| File | Statements | Branches | Functions | Lines |" >> file_coverage.md
           echo "|------|------------|----------|-----------|-------|" >> file_coverage.md
 
-          # Parse each file’s coverage data
-          grep -E '^SF|^DA|^BRDA|^FNDA' coverage/lcov.info | \
-          awk '
-            /^SF:/ {file=$0; sub("SF:", "", file)}
-            /^DA:/ {statements[file]++}
-            /^DA:[^,]*,[^,]*,1/ {executed_statements[file]++}
-            /^BRDA:/ {branches[file]++}
-            /^BRDA:[^,]*,[^,]*,[^,]*,1/ {executed_branches[file]++}
-            /^FNDA:/ {functions[file]++}
-            /^FNDA:[^,]*,1/ {executed_functions[file]++}
-            END {
-              for (file in statements) {
-                total_s=statements[file] ? statements[file] : 0;
-                total_b=branches[file] ? branches[file] : 0;
-                total_f=functions[file] ? functions[file] : 0;
-                coverage_s=total_s ? executed_statements[file]/total_s*100 : 0;
-                coverage_b=total_b ? executed_branches[file]/total_b*100 : 0;
-                coverage_f=total_f ? executed_functions[file]/total_f*100 : 0;
-                coverage_l=executed_statements[file]/statements[file]*100;
-                printf "| %s | %.2f%% | %.2f%% | %.2f%% | %.2f%% |\n", file, coverage_s, coverage_b, coverage_f, coverage_l;
-              }
-            }' >> file_coverage.md
+          # Parse detailed coverage for each file
+          xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
+          grep -oP 'filename="\K[^"]+' | \
+          while read -r file; do
+            # Extract metrics for each file
+            stmts=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
+            branches=$(xmllint --xpath "string(//class[@filename='$file']/@branch-rate)" coverage/cobertura-coverage.xml)
+            funcs=$(xmllint --xpath "string(//class[@filename='$file']/@function-rate)" coverage/cobertura-coverage.xml)
+            lines=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
+
+            # Convert rates to percentages
+            stmts_pct=$(echo "$stmts * 100" | bc)
+            branches_pct=$(echo "$branches * 100" | bc)
+            funcs_pct=$(echo "$funcs * 100" | bc)
+            lines_pct=$(echo "$lines * 100" | bc)
+
+            # Append to file-level coverage markdown
+            echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${funcs_pct}% | ${lines_pct}% |" >> file_coverage.md
+          done
 
       - name: Combine summaries and post as PR comment
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Combine summaries from all steps
-          COMMENT_BODY="${{ steps.parse_test.outputs.test_summary }}\n\n${{ steps.parse_coverage_summary.outputs.coverage_summary }}\n\n$(cat file_coverage.md)"
+          # Read summaries from files
+          TEST_SUMMARY=$(<test_summary.md)
+          COVERAGE_SUMMARY=$(<coverage_summary.md)
+          FILE_COVERAGE=$(<file_coverage.md)
 
-          # Post as a comment to the PR
+          # Combine summaries into the comment body
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE"
+          echo "Comment body to be posted:"
+          echo "$COMMENT_BODY"
+
+          # Post comment on the PR using the Issues API
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
                -H "Authorization: token $GITHUB_TOKEN" \
