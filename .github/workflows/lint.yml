@@ -67,9 +67,8 @@ jobs:
         id: parse_file_coverage
         run: |
           # Initialize file-level coverage markdown
-          echo "### Detailed Coverage Report by File" > file_coverage.md
-          echo "| File | Statements | Branches | Functions | Lines |" >> file_coverage.md
           echo "|------|------------|----------|-----------|-------|" >> file_coverage.md
+          echo "| File | Statements | Branches | Functions | Lines |" >> file_coverage.md
 
           # Parse detailed coverage for each file
           xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
