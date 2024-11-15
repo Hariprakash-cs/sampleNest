@@ -50,9 +50,6 @@ jobs:
           echo "|-------------|--------|--------|---------|" >> test_summary.md
           echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
 
-          # Set output for next steps
-          echo "::set-output name=test_summary::$(cat test_summary.md)"
-
       - name: Parse coverage report for summary
         id: parse_coverage
         run: |
@@ -66,23 +63,26 @@ jobs:
           echo "|---------------|----------|" >> coverage_summary.md
           echo "| Line Coverage | ${COVERAGE_PERCENT}% |" >> coverage_summary.md
 
-          # Set output for next steps
-          echo "::set-output name=coverage_summary::$(cat coverage_summary.md)"
-
       - name: Combine summaries and post as PR comment
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Combine both summaries
-          COMMENT_BODY="${{ steps.parse_test.outputs.test_summary }}\n\n${{ steps.parse_coverage.outputs.coverage_summary }}"
+          # Read summaries from files
+          TEST_SUMMARY=$(<test_summary.md)
+          COVERAGE_SUMMARY=$(<coverage_summary.md)
+
+          # Combine summaries into the comment body
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY"
           echo "Comment body to be posted:"
           echo "$COMMENT_BODY"
+
+          # Post comment on the PR using the Issues API
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
                -H "Authorization: token $GITHUB_TOKEN" \
                -H "Content-Type: application/json" \
-               -d "{\"body\": \"$COMMENT_BODY\"}" \
+               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
                "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
 
           if [ "$RESPONSE" -ne 201 ]; then
