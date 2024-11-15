@@ -1,4 +1,4 @@
-name: Unit and Integration Tests with Full Report
+name: Unit and Integration Tests with Detailed Coverage
 
 on:
   pull_request:
@@ -25,29 +25,61 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run unit tests and generate coverage report
-        run: npm test -- --coverage --coverageReporters=lcov
-
-      - name: Parse LCOV file for per-file coverage
-        id: parse_lcov
+      - name: Run unit tests and generate lcov report
         run: |
-          echo "### Coverage Summary by File" > coverage_summary.md
-          echo "| File | Statements | Branches |" >> coverage_summary.md
-          echo "|------|------------|----------|" >> coverage_summary.md
-          awk '/SF:/ {file=$0} /DA:/ {statements++} /BRDA:/ {branches++} /BRDA:.*0$/ {uncovered_branches++} \
-              END {print file, statements, uncovered_branches}' coverage/lcov.info | while read file statements uncovered_branches; do
-            statement_coverage=$((100 - (uncovered_branches * 100 / statements)))
-            echo "| ${file} | ${statement_coverage}% | ${uncovered_branches}% |" >> coverage_summary.md
-          done
+          # Run tests and generate lcov report
+          npm test -- --coverage --coverageReporters=lcov
 
-      - name: Post coverage summary as PR comment
+      - name: Parse file-level coverage metrics
+        id: parse_coverage
+        run: |
+          # Extract the file-level coverage summary from lcov.info
+          echo "### Detailed Coverage Report" > file_coverage.md
+          echo "| File | Statements | Branches | Functions | Lines |" >> file_coverage.md
+          echo "|------|------------|----------|-----------|-------|" >> file_coverage.md
+          grep -E '^SF|^DA|^BRDA|^FNDA' coverage/lcov.info | \
+          awk '
+            /^SF:/ {file=$0; sub("SF:", "", file)}
+            /^DA:/ {statements[file]++}
+            /^DA:[^,]*,[^,]*,1/ {executed_statements[file]++}
+            /^BRDA:/ {branches[file]++}
+            /^BRDA:[^,]*,[^,]*,[^,]*,1/ {executed_branches[file]++}
+            /^FNDA:/ {functions[file]++}
+            /^FNDA:[^,]*,1/ {executed_functions[file]++}
+            END {
+              for (file in statements) {
+                total_s=statements[file] ? statements[file] : 0;
+                total_sb=branches[file] ? branches[file] : 0;
+                total_f=functions[file] ? functions[file] : 0;
+                coverage_s=total_s ? executed_statements[file]/total_s*100 : 0;
+                coverage_b=total_sb ? executed_branches[file]/total_sb*100 : 0;
+                coverage_f=total_f ? executed_functions[file]/total_f*100 : 0;
+                coverage_l=(executed_statements[file] / statements[file] * 100);
+                printf "| %s | %.2f%% | %.2f%% | %.2f%% | %.2f%% |\n", file, coverage_s, coverage_b, coverage_f, coverage_l;
+              }
+            }' >> file_coverage.md
+
+      - name: Post coverage report as PR comment
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMENT_BODY=$(cat coverage_summary.md)
+          # Read the detailed coverage report
+          COMMENT_BODY=$(<file_coverage.md)
+
+          # Post the comment to the PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
-          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+          RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
                -H "Content-Type: application/json" \
-               -d "{\"body\": \"$COMMENT_BODY\"}" \
-               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
+               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
+
+          if [ "$RESPONSE" -ne 201 ]; then
+            echo "Failed to post comment. HTTP Status: $RESPONSE"
+            echo "Response Body:"
+            cat response.txt
+            exit 1
+          else
+            echo "Comment posted successfully."
+          fi
