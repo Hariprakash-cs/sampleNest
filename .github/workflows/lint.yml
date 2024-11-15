@@ -95,7 +95,7 @@ jobs:
         id: parse_lcov
         run: |
             # Extract coverage data from lcov.info
-            COVERAGE_PERCENT=$(grep -oP "lines:\d+,\d+" coverage/lcov-report/lcov-report.html | sed -E "s/lines:(\d+),(\d+)/\1\/\2/" | awk -F/ '{print ($1/$2)*100}')
+            COVERAGE_PERCENT=$(grep -oP "lines:\d+,\d+" coverage/lcov-report/lcov-report.html | sed -E "s/lines:(\d+),(\d+)/\1\/\2/" | awk -F/ '{print $1/$2}' | xargs -I {} echo "{} * 100" | bc)
             
             # Format as a markdown table
             echo "### Detailed lcov Report" > lcov_summary.md
