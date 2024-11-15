@@ -71,7 +71,7 @@ jobs:
         run: |
           # Initialize file-level coverage markdown
           echo "### Detailed Coverage Report by File" > file_coverage.md
-          echo "| File | Statements | Branches | Functions | Lines | Uncovered Line #'s |" >> file_coverage.md
+          echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
           echo "|------|------------|----------|-----------|-------|--------------------|" >> file_coverage.md
 
           # Parse detailed coverage for each file
@@ -91,7 +91,6 @@ jobs:
             # Log extracted values for debugging
             echo "Statements Rate: $stmts"
             echo "Branches Rate: $branches"
-            echo "Functions Rate: $funcs"
             echo "Lines Rate: $lines"
             echo "Uncovered Lines: $uncovered_lines"
             
@@ -104,11 +103,10 @@ jobs:
             # Log percentages for debugging
             echo "Statements Coverage: ${stmts_pct}%"
             echo "Branches Coverage: ${branches_pct}%"
-            echo "Functions Coverage: ${funcs_pct}%"
             echo "Lines Coverage: ${lines_pct}%"
 
             # Append to file-level coverage markdown
-            echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${funcs_pct}% | ${lines_pct}% | ${uncovered_lines} |" >> file_coverage.md
+            echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${lines_pct}% | ${uncovered_lines} |" >> file_coverage.md
           done
 
       - name: Combine summaries and post as PR comment
