@@ -46,6 +46,7 @@ jobs:
 
           # Format the test results as a markdown table
           echo "### Unit Test Results Summary" > test_summary.md
+          echo "| Unit Test Results Summary |" >> test_summary.md
           echo "| Total Tests | Passed | Failed | Skipped |" >> test_summary.md
           echo "|-------------|--------|--------|---------|" >> test_summary.md
           echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
