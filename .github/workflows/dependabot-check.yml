@@ -1,0 +1,28 @@
+name: Validate Dependabot Updates
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16" # Adjust as per your project
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Security Audit
+        run: npm audit --audit-level=moderate
+
+      - name: Run Tests
+        run: npm test
