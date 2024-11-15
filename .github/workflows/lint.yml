@@ -62,8 +62,8 @@ jobs:
 
           # Format the coverage summary as a markdown table
           echo "### Coverage Summary" > coverage_summary.md
-          echo "| Metric        | Coverage |" >> coverage_summary.md
           echo "|---------------|----------|" >> coverage_summary.md
+          echo "| Metric        | Coverage |" >> coverage_summary.md
           echo "| Line Coverage | ${COVERAGE_PERCENT}% | | |" >> coverage_summary.md
 
       - name: Parse detailed file-level coverage
@@ -71,8 +71,8 @@ jobs:
         run: |
           # Initialize file-level coverage markdown
           echo "### Detailed Coverage Report by File" > file_coverage.md
-          echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
           echo "|------|------------|----------|-----------|-------|--------------------|" >> file_coverage.md
+          echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
 
           # Parse detailed coverage for each file
           xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
