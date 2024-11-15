@@ -64,7 +64,7 @@ jobs:
           echo "### Coverage Summary" > coverage_summary.md
           echo "| Metric        | Coverage |" >> coverage_summary.md
           echo "|---------------|----------|" >> coverage_summary.md
-          echo "| Line Coverage | ${COVERAGE_PERCENT}% | | " >> coverage_summary.md
+          echo "| Line Coverage | ${COVERAGE_PERCENT}% | | |" >> coverage_summary.md
 
       - name: Parse detailed file-level coverage
         id: parse_file_coverage
