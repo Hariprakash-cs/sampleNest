@@ -96,37 +96,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-            # Read summaries from files
-            TEST_SUMMARY=$(<test_summary.md)
-            COVERAGE_SUMMARY=$(<coverage_summary.md)
-            FILE_COVERAGE=$(<file_coverage.md>)
-        
-            # Add link to the detailed lcov report (index.html)
-            LCOV_REPORT_LINK="View the detailed coverage report here: https://github.com/${{ github.repository }}/blob/${{ github.sha }}/coverage/lcov-report/index.html"
-        
-            # Combine summaries into the comment body
-            COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n$LCOV_REPORT_LINK"
-        
-            # Escape newlines and special characters for jq
-            COMMENT_BODY_ESCAPED=$(echo "$COMMENT_BODY" | jq -sR .)
-        
-            echo "Comment body to be posted:"
-            echo "$COMMENT_BODY_ESCAPED"
-        
-            # Post comment on the PR using the Issues API
-            PR_NUMBER="${{ github.event.pull_request.number }}"
-            RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
-                 -H "Authorization: token $GITHUB_TOKEN" \
-                 -H "Content-Type: application/json" \
-                 -d "{\"body\":$COMMENT_BODY_ESCAPED}" \
-                 "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
-        
-            if [ "$RESPONSE" -ne 201 ]; then
-              echo "Failed to post comment. HTTP Status: $RESPONSE"
-              echo "Response Body:"
-              cat response.txt
-              exit 1
-            else
-              echo "Comment posted successfully."
-            fi
-        
+          # Read summaries from files
+          TEST_SUMMARY=$(cat test_summary.md)
+          COVERAGE_SUMMARY=$(cat coverage_summary.md)
+          FILE_COVERAGE=$(cat file_coverage.md)
+
+          # Add link to the detailed lcov report (index.html)
+          LCOV_REPORT_LINK="View the detailed coverage report here: https://github.com/${{ github.repository }}/blob/${{ github.sha }}/coverage/lcov-report/index.html"
+
+          # Combine summaries into the comment body
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n$LCOV_REPORT_LINK"
+          echo "Comment body to be posted:"
+          echo "$COMMENT_BODY"
+
+          # Post comment on the PR using the Issues API
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Content-Type: application/json" \
+               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
+
+          if [ "$RESPONSE" -ne 201 ]; then
+            echo "Failed to post comment. HTTP Status: $RESPONSE"
+            echo "Response Body:"
+            cat response.txt
+            exit 1
+          else
+            echo "Comment posted successfully."
+          fi
