@@ -78,6 +78,9 @@ jobs:
           xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
           grep -oP 'filename="\K[^"]+' | \
           while read -r file; do
+            # Log the current file being processed
+            echo "Processing file: $file"
+            
             # Extract metrics for each file
             stmts=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
             branches=$(xmllint --xpath "string(//class[@filename='$file']/@branch-rate)" coverage/cobertura-coverage.xml)
@@ -85,11 +88,24 @@ jobs:
             lines=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
             uncovered_lines=$(xmllint --xpath "string(//class[@filename='$file']/@uncovered-line)" coverage/cobertura-coverage.xml)
 
+            # Log extracted values for debugging
+            echo "Statements Rate: $stmts"
+            echo "Branches Rate: $branches"
+            echo "Functions Rate: $funcs"
+            echo "Lines Rate: $lines"
+            echo "Uncovered Lines: $uncovered_lines"
+            
             # Convert rates to percentages
             stmts_pct=$(echo "$stmts * 100" | bc)
             branches_pct=$(echo "$branches * 100" | bc)
             funcs_pct=$(echo "$funcs * 100" | bc)
             lines_pct=$(echo "$lines * 100" | bc)
+
+            # Log percentages for debugging
+            echo "Statements Coverage: ${stmts_pct}%"
+            echo "Branches Coverage: ${branches_pct}%"
+            echo "Functions Coverage: ${funcs_pct}%"
+            echo "Lines Coverage: ${lines_pct}%"
 
             # Append to file-level coverage markdown
             echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${funcs_pct}% | ${lines_pct}% | ${uncovered_lines} |" >> file_coverage.md
