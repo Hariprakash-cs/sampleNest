@@ -1,4 +1,4 @@
-name: Unit and Integration Tests with Detailed Coverage
+name: Unit and Integration Tests with Detailed Coverage and Summary
 
 on:
   pull_request:
@@ -27,16 +27,53 @@ jobs:
 
       - name: Run unit tests and generate lcov report
         run: |
-          # Run tests and generate lcov report
-          npm test -- --coverage --coverageReporters=lcov
+          # Run tests and generate coverage report
+          npm test -- --coverage --coverageReporters=lcov --json --outputFile=test-results.json
+
+      - name: Parse test results summary
+        id: parse_test
+        run: |
+          # Extract test results summary from JSON
+          TOTAL_TESTS=$(jq '.numTotalTests' test-results.json)
+          PASSED_TESTS=$(jq '.numPassedTests' test-results.json)
+          FAILED_TESTS=$(jq '.numFailedTests' test-results.json)
+          SKIPPED_TESTS=$(jq '.numPendingTests' test-results.json)
+
+          # Format test summary as markdown table
+          echo "### Test Results Summary" > test_summary.md
+          echo "| Total Tests | Passed | Failed | Skipped |" >> test_summary.md
+          echo "|-------------|--------|--------|---------|" >> test_summary.md
+          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
+
+          # Set output for next step
+          echo "::set-output name=test_summary::$(cat test_summary.md)"
+
+      - name: Parse overall coverage percentage
+        id: parse_coverage_summary
+        run: |
+          # Extract line coverage percentage from lcov.info
+          COVERAGE_PERCENT=$(grep -Po 'LF:\K\d+' coverage/lcov.info | awk '{s+=$1} END {print s}')
+          COVERED_LINES=$(grep -Po 'LH:\K\d+' coverage/lcov.info | awk '{s+=$1} END {print s}')
+          COVERAGE_TOTAL=$(echo "scale=2; ($COVERED_LINES / $COVERAGE_PERCENT) * 100" | bc)
+
+          # Format overall coverage summary as markdown table
+          echo "### Coverage Summary" > coverage_summary.md
+          echo "| Metric        | Coverage |" >> coverage_summary.md
+          echo "|---------------|----------|" >> coverage_summary.md
+          echo "| Line Coverage | ${COVERAGE_TOTAL}% |" >> coverage_summary.md
+
+          # Set output for next step
+          echo "::set-output name=coverage_summary::$(cat coverage_summary.md)"
 
       - name: Parse file-level coverage metrics
-        id: parse_coverage
+        id: parse_file_coverage
         run: |
-          # Extract the file-level coverage summary from lcov.info
-          echo "### Detailed Coverage Report" > file_coverage.md
+          # Initialize file-level coverage markdown
+          echo "### Detailed Coverage Report by File" > file_coverage.md
           echo "| File | Statements | Branches | Functions | Lines |" >> file_coverage.md
           echo "|------|------------|----------|-----------|-------|" >> file_coverage.md
+
+          # Parse each file’s coverage data
           grep -E '^SF|^DA|^BRDA|^FNDA' coverage/lcov.info | \
           awk '
             /^SF:/ {file=$0; sub("SF:", "", file)}
@@ -49,25 +86,25 @@ jobs:
             END {
               for (file in statements) {
                 total_s=statements[file] ? statements[file] : 0;
-                total_sb=branches[file] ? branches[file] : 0;
+                total_b=branches[file] ? branches[file] : 0;
                 total_f=functions[file] ? functions[file] : 0;
                 coverage_s=total_s ? executed_statements[file]/total_s*100 : 0;
-                coverage_b=total_sb ? executed_branches[file]/total_sb*100 : 0;
+                coverage_b=total_b ? executed_branches[file]/total_b*100 : 0;
                 coverage_f=total_f ? executed_functions[file]/total_f*100 : 0;
-                coverage_l=(executed_statements[file] / statements[file] * 100);
+                coverage_l=executed_statements[file]/statements[file]*100;
                 printf "| %s | %.2f%% | %.2f%% | %.2f%% | %.2f%% |\n", file, coverage_s, coverage_b, coverage_f, coverage_l;
               }
             }' >> file_coverage.md
 
-      - name: Post coverage report as PR comment
+      - name: Combine summaries and post as PR comment
         if: github.event_name == 'pull_request'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Read the detailed coverage report
-          COMMENT_BODY=$(<file_coverage.md)
+          # Combine summaries from all steps
+          COMMENT_BODY="${{ steps.parse_test.outputs.test_summary }}\n\n${{ steps.parse_coverage_summary.outputs.coverage_summary }}\n\n$(cat file_coverage.md)"
 
-          # Post the comment to the PR
+          # Post as a comment to the PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
                -H "Authorization: token $GITHUB_TOKEN" \
