@@ -151,7 +151,6 @@ jobs:
           fi
 
       - name: Update README with coverage badge
-        if: github.ref_name == 'main'
         run: |
           # Define the new badge URL
           BADGE_URL="https://img.shields.io/badge/Coverage-${{ env.COVERAGE_PERCENT }}%25-brightgreen"
