@@ -150,22 +150,12 @@ jobs:
             echo "Comment posted successfully."
           fi
 
-      - name: Update README with coverage badge
+      - name: Update README with Coverage Percentage
         run: |
-          # Define the new badge URL
-          BADGE_URL="https://img.shields.io/badge/Coverage-${{ env.COVERAGE_PERCENT }}%25-brightgreen"
-
-          # Replace the existing coverage badge in README.md
-          sed -i 's|!\[Coverage\](https://img.shields.io/badge/Coverage-[^)]*)|![Coverage]($BADGE_URL)|' README.md
-
-          # Check if changes were made to README.md
-          if git diff --quiet README.md; then
-            echo "README.md is already up to date."
-          else
-            # Commit changes
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add README.md
-            git commit -m "Update coverage badge in README"
-            git push
-          fi
+          COVERAGE=$(echo "${COVERAGE_PERCENT}" | bc)
+          sed -i "s/{{COVERAGE_PERCENT}}/${COVERAGE}/g" README.md
+          git config --global user.email "you@example.com"
+          git config --global user.name "GitHub Actions"
+          git add README.md
+          git commit -m "Update README with coverage percentage"
+          git push origin main
