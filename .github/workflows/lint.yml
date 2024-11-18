@@ -59,6 +59,7 @@ jobs:
           # Extract line coverage percentage from cobertura XML
           COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
           COVERAGE_PERCENT=$(echo "$COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+          echo "COVERAGE_PERCENT=$COVERAGE_PERCENT" >> $GITHUB_ENV
 
           # Format the coverage summary as a markdown table
           echo "### Coverage Summary" > coverage_summary.md
@@ -148,3 +149,24 @@ jobs:
           else
             echo "Comment posted successfully."
           fi
+
+          - name: Update README with coverage badge
+          if: github.ref_name == 'main'
+          run: |
+            # Define the new badge URL
+            BADGE_URL="https://img.shields.io/badge/Coverage-${{ env.COVERAGE_PERCENT }}%25-brightgreen"
+
+            # Replace the existing coverage badge in README.md
+            sed -i 's|!\[Coverage\](https://img.shields.io/badge/Coverage-[^)]*)|![Coverage]($BADGE_URL)|' README.md
+
+            # Check if changes were made to README.md
+            if git diff --quiet README.md; then
+              echo "README.md is already up to date."
+            else
+              # Commit changes
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add README.md
+              git commit -m "Update coverage badge in README"
+              git push
+            fi
