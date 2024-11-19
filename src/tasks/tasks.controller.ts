@@ -7,14 +7,14 @@ import {
   Patch,
   Post,
   Query,
-} from '@nestjs/common';
-import { TasksService } from './tasks.service';
-import { Task } from './tasks.model';
-import { CreateTaskDto } from './dto/create-task.dto';
-import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
-import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
+} from "@nestjs/common";
+import { TasksService } from "./tasks.service";
+import { Task } from "./tasks.model";
+import { CreateTaskDto } from "./dto/create-task.dto";
+import { GetTasksFilterDto } from "./dto/get-tasks-filter.dto";
+import { UpdateTaskStatusDto } from "./dto/update-task-status.dto";
 
-@Controller('tasks')
+@Controller("tasks")
 export class TasksController {
   constructor(private tasksService: TasksService) {}
 
@@ -32,18 +32,18 @@ export class TasksController {
   }
 
   @Get(`/:id`)
-  getATask(@Param('id') id: string): Task {
+  getATask(@Param("id") id: string): Task {
     return this.tasksService.getATaskService(id);
   }
 
   @Delete(`/:id`)
-  deleteATask(@Param('id') id: string): void {
+  deleteATask(@Param("id") id: string): void {
     this.tasksService.deleteATaskService(id);
   }
 
-  @Patch('/:id')
+  @Patch("/:id")
   updateTask(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateTaskStatusDto: UpdateTaskStatusDto,
   ): Task {
     const { status } = updateTaskStatusDto;
