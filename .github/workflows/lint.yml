@@ -53,26 +53,57 @@ jobs:
           echo "|-------------|--------|--------|---------|" >> test_summary.md
           echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
 
-      - name: Parse coverage report for summary
-        id: parse_coverage
+          - name: Parse overall coverage metrics
+          id: parse_overall_coverage
+          run: |
+            # Initialize counters for overall metrics
+            TOTAL_STATEMENTS=0
+            COVERED_STATEMENTS=0
+            TOTAL_FUNCTIONS=0
+            COVERED_FUNCTIONS=0
+
+            # Extract class-level metrics and compute totals
+            xmllint --xpath "//class" coverage/cobertura-coverage.xml | grep -oP 'filename="\K[^"]+' | while read -r file; do
+              # Extract line rate (statement coverage rate)
+              STATEMENT_RATE=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
+              # Extract complexity (function coverage rate, if available)
+              FUNCTION_RATE=$(xmllint --xpath "string(//class[@filename='$file']/@complexity)" coverage/cobertura-coverage.xml || echo 0)
+
+              # Convert rates to total and covered metrics
+              STATEMENTS_FROM_CLASS=1 # Default 1 statement for simplicity if no metadata
+              COVERED_FROM_CLASS=$(echo "$STATEMENT_RATE * $STATEMENTS_FROM_CLASS" | bc)
+
+              FUNCTIONS_FROM_CLASS=1 # Default 1 function for simplicity
+              COVERED_FUNCTIONS_FROM_CLASS=$(echo "$FUNCTION_RATE * $FUNCTIONS_FROM_CLASS" | bc)
+
+              # Accumulate totals
+              TOTAL_STATEMENTS=$(echo "$TOTAL_STATEMENTS + $STATEMENTS_FROM_CLASS" | bc)
+              COVERED_STATEMENTS=$(echo "$COVERED_STATEMENTS + $COVERED_FROM_CLASS" | bc)
+              TOTAL_FUNCTIONS=$(echo "$TOTAL_FUNCTIONS + $FUNCTIONS_FROM_CLASS" | bc)
+              COVERED_FUNCTIONS=$(echo "$COVERED_FUNCTIONS + $COVERED_FUNCTIONS_FROM_CLASS" | bc)
+            done
+
+            # Compute final coverage percentages
+            OVERALL_STATEMENT_COVERAGE=$(echo "scale=2; ($COVERED_STATEMENTS / $TOTAL_STATEMENTS) * 100" | bc)
+            OVERALL_FUNCTION_COVERAGE=$(echo "scale=2; ($COVERED_FUNCTIONS / $TOTAL_FUNCTIONS) * 100" | bc)
+
+            # Save results for later steps
+            echo "overall_statement_coverage=$OVERALL_STATEMENT_COVERAGE" >> $GITHUB_ENV
+            echo "overall_function_coverage=$OVERALL_FUNCTION_COVERAGE" >> $GITHUB_ENV
+
+      - name: Create Coverage Summary
         run: |
-          # Extract coverage percentages from cobertura XML
-          LINE_COVERAGE=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
-          STATEMENT_COVERAGE=$(xmllint --xpath "string(//coverage/@statement-rate)" coverage/cobertura-coverage.xml)
-          FUNCTION_COVERAGE=$(xmllint --xpath "string(//coverage/@function-rate)" coverage/cobertura-coverage.xml)
-
-          # Convert to percentages
-          LINE_COVERAGE=$(echo "$LINE_COVERAGE * 100" | bc)
-          STATEMENT_COVERAGE=$(echo "$STATEMENT_COVERAGE * 100" | bc)
-          FUNCTION_COVERAGE=$(echo "$FUNCTION_COVERAGE * 100" | bc)
-
-          # Format the coverage summary as a markdown table
           echo "### Coverage Summary" > coverage_summary.md
-          echo "| Metric            | Coverage |" >> coverage_summary.md
-          echo "|-------------------|----------|" >> coverage_summary.md
-          echo "| Line Coverage     | ${LINE_COVERAGE}% |" >> coverage_summary.md
-          echo "| Statement Coverage| ${STATEMENT_COVERAGE}% |" >> coverage_summary.md
-          echo "| Function Coverage | ${FUNCTION_COVERAGE}% |" >> coverage_summary.md
+          echo "| Metric              | Coverage |" >> coverage_summary.md
+          echo "|---------------------|----------|" >> coverage_summary.md
+          echo "| Statement Coverage  | $OVERALL_STATEMENT_COVERAGE% |" >> coverage_summary.md
+          echo "| Function Coverage   | $OVERALL_FUNCTION_COVERAGE% |" >> coverage_summary.md
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Coverage Report
+          path: coverage_summary.md
 
       - name: Fail on insufficient coverage
         run: |
