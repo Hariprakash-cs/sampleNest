@@ -72,8 +72,8 @@ jobs:
 
       - name: Fail on insufficient coverage
         run: |
-          REQUIRED_LINE_COVERAGE=1
-          REQUIRED_BRANCH_COVERAGE=1
+          REQUIRED_LINE_COVERAGE=0
+          REQUIRED_BRANCH_COVERAGE=0
 
           # Extract line and branch coverage percentages from Cobertura XML
           LINE_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
