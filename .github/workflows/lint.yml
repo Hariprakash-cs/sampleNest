@@ -49,12 +49,13 @@ jobs:
       - name: Parse coverage report for summary
         id: parse_coverage
         run: |
-          # Extract line and branch coverage percentages from Cobertura XML
-          LINE_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
-          LINE_COVERAGE_PERCENT=$(echo "scale=2; $LINE_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage with two decimals
-
-          BRANCH_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
-          BRANCH_COVERAGE_PERCENT=$(echo "scale=2; $BRANCH_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage with two decimals
+          # Extract line and branch coverage percentage from cobertura XML
+          LINE_COVERAGE=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          BRANCH_COVERAGE=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
+    
+          # Convert to percentage and format to two decimal points
+          LINE_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$LINE_COVERAGE * 100" | bc)")
+          BRANCH_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$BRANCH_COVERAGE * 100" | bc)")
 
 
           # Format the coverage summary as a Markdown table
