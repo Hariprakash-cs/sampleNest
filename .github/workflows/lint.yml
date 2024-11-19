@@ -68,7 +68,7 @@ jobs:
           echo "| Metric          | Coverage |" >> coverage_summary.md
           echo "|-----------------|----------|" >> coverage_summary.md
           echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
-          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% |" >> coverage_summary.md
+          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% | | |" >> coverage_summary.md
 
       - name: Fail on insufficient coverage
         run: |
@@ -103,7 +103,6 @@ jobs:
         id: parse_file_coverage
         run: |
           # Initialize file-level coverage markdown
-          echo "### Detailed Coverage Report by File" > file_coverage.md
           echo "|------|------------|----------|-----------|-------|--------------------|" >> file_coverage.md
           echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
 
