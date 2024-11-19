@@ -53,22 +53,22 @@ jobs:
           echo "|-------------|--------|--------|---------|" >> test_summary.md
           echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
 
-          - name: Parse coverage report for summary
-          id: parse_coverage
-          run: |
-            # Extract line and branch coverage percentages from Cobertura XML
-            LINE_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
-            LINE_COVERAGE_PERCENT=$(echo "$LINE_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+      - name: Parse coverage report for summary
+        id: parse_coverage
+        run: |
+          # Extract line and branch coverage percentages from Cobertura XML
+          LINE_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          LINE_COVERAGE_PERCENT=$(echo "$LINE_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
 
-            BRANCH_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
-            BRANCH_COVERAGE_PERCENT=$(echo "$BRANCH_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+          BRANCH_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
+          BRANCH_COVERAGE_PERCENT=$(echo "$BRANCH_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
 
-            # Format the coverage summary as a Markdown table
-            echo "### Coverage Summary" > coverage_summary.md
-            echo "| Metric          | Coverage |" >> coverage_summary.md
-            echo "|-----------------|----------|" >> coverage_summary.md
-            echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
-            echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% |" >> coverage_summary.md
+          # Format the coverage summary as a Markdown table
+          echo "### Coverage Summary" > coverage_summary.md
+          echo "| Metric          | Coverage |" >> coverage_summary.md
+          echo "|-----------------|----------|" >> coverage_summary.md
+          echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
+          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% |" >> coverage_summary.md
 
       - name: Fail on insufficient coverage
         run: |
