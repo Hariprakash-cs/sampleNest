@@ -1,0 +1,179 @@
+name: Unit and Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run lint checks
+        run: npm run lint
+
+      - name: Run unit tests and generate reports
+        run: |
+          # Run tests and generate coverage reports
+          npm test -- --coverage --coverageReporters=cobertura --json --outputFile=test-results.json
+
+      - name: Install xmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+
+      - name: Parse test results for summary
+        id: parse_test
+        run: |
+          # Extract summary of test results
+          TOTAL_TESTS=$(jq '.numTotalTests' test-results.json)
+          PASSED_TESTS=$(jq '.numPassedTests' test-results.json)
+          FAILED_TESTS=$(jq '.numFailedTests' test-results.json)
+          SKIPPED_TESTS=$(jq '.numPendingTests' test-results.json)
+
+          # Format the test results as a markdown table
+          echo "### Unit Test Results Summary" > test_summary.md
+          echo "| Total Tests | Passed | Failed | Skipped |" >> test_summary.md
+          echo "|-------------|--------|--------|---------|" >> test_summary.md
+          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
+
+      - name: Parse coverage report for summary
+        id: parse_coverage
+        run: |
+          # Extract line and branch coverage percentage from cobertura XML
+          LINE_COVERAGE=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          BRANCH_COVERAGE=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
+
+          # Convert to percentage and format to two decimal points
+          LINE_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$LINE_COVERAGE * 100" | bc)")
+          BRANCH_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$BRANCH_COVERAGE * 100" | bc)")
+
+
+          # Format the coverage summary as a Markdown table
+          echo "### Coverage Summary" > coverage_summary.md
+          echo "| Metric          | Coverage |" >> coverage_summary.md
+          echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
+          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% | | |" >> coverage_summary.md
+
+      - name: Fail on insufficient coverage
+        run: |
+          REQUIRED_LINE_COVERAGE=98
+          REQUIRED_BRANCH_COVERAGE=98
+
+          # Extract line and branch coverage percentages from Cobertura XML
+          LINE_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          LINE_COVERAGE_PERCENT=$(echo "$LINE_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+
+          BRANCH_COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
+          BRANCH_COVERAGE_PERCENT=$(echo "$BRANCH_COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+
+          # Output the current coverage
+          echo "Line Coverage: ${LINE_COVERAGE_PERCENT}% (Required: ${REQUIRED_LINE_COVERAGE}%)"
+          echo "Branch Coverage: ${BRANCH_COVERAGE_PERCENT}% (Required: ${REQUIRED_BRANCH_COVERAGE}%)"
+
+          # Check if coverage meets the required thresholds
+          if (( $(echo "$LINE_COVERAGE_PERCENT < $REQUIRED_LINE_COVERAGE" | bc -l) )); then
+            echo "❌ Line coverage is below the required threshold."
+            exit 1
+          fi
+
+          if (( $(echo "$BRANCH_COVERAGE_PERCENT < $REQUIRED_BRANCH_COVERAGE" | bc -l) )); then
+            echo "❌ Branch coverage is below the required threshold."
+            exit 1
+          fi
+
+          echo "✅ Both line and branch coverage meet the required thresholds."
+
+      - name: Parse detailed file-level coverage
+        id: parse_file_coverage
+        run: |
+          # Initialize file-level coverage markdown
+          echo "|------|------------|----------|-----------|-------|--------------------|" >> file_coverage.md
+          echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
+
+          # Parse detailed coverage for each file
+          xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
+          grep -oP 'filename="\K[^"]+' | \
+          while read -r file; do
+            # Log the current file being processed
+            echo "Processing file: $file"
+            
+            # Extract metrics for each file
+            stmts=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
+            branches=$(xmllint --xpath "string(//class[@filename='$file']/@branch-rate)" coverage/cobertura-coverage.xml)
+            funcs=$(xmllint --xpath "string(//class[@filename='$file']/@function-rate)" coverage/cobertura-coverage.xml)
+            lines=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
+            uncovered_lines=$(xmllint --xpath "string(//class[@filename='$file']/@uncovered-line)" coverage/cobertura-coverage.xml)
+
+            # Log extracted values for debugging
+            echo "Statements Rate: $stmts"
+            echo "Branches Rate: $branches"
+            echo "Lines Rate: $lines"
+            echo "Uncovered Lines: $uncovered_lines"
+            
+            # Convert rates to percentages
+            stmts_pct=$(echo "$stmts * 100" | bc)
+            branches_pct=$(echo "$branches * 100" | bc)
+            funcs_pct=$(echo "$funcs * 100" | bc)
+            lines_pct=$(echo "$lines * 100" | bc)
+
+            # Log percentages for debugging
+            echo "Statements Coverage: ${stmts_pct}%"
+            echo "Branches Coverage: ${branches_pct}%"
+            echo "Lines Coverage: ${lines_pct}%"
+
+            # Append to file-level coverage markdown
+            echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${lines_pct}% | ${uncovered_lines} |" >> file_coverage.md
+          done
+
+      - name: Combine summaries and post as PR comment
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Read summaries from files
+          TEST_SUMMARY=$(cat test_summary.md)
+          COVERAGE_SUMMARY=$(cat coverage_summary.md)
+          FILE_COVERAGE=$(cat file_coverage.md)
+
+          # Add a note indicating that this is the latest report
+          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n**This is the latest test and coverage report.**"
+
+          # Post comment on the PR or the push event (on PR or direct push)
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          if [ "$PR_NUMBER" != "" ]; then
+            # If it's a pull request, post the comment on the PR
+            RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Content-Type: application/json" \
+               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
+          else
+            # If it's a push, post the comment on the commit
+            RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Content-Type: application/json" \
+               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+               "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments")
+          fi
+
+          if [ "$RESPONSE" -ne 201 ]; then
+            echo "Failed to post comment. HTTP Status: $RESPONSE"
+            echo "Response Body:"
+            cat response.txt
+            exit 1
+          else
+            echo "Comment posted successfully."
+          fi
