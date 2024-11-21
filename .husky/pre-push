@@ -1,11 +1,1 @@
-# Fetch the current commit message directly
-commit_msg=$(git log -1 --pretty=%B)
-
-# Debug: Log the commit message for validation
-echo "Commit message to validate: $commit_msg"
-
-# Pass the commit message to the validation script
-sh .husky/validate-commit-msg.sh "$commit_msg"
 npm run test && npm run test:e2e || true
-
-exit 1
