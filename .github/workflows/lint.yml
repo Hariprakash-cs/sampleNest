@@ -31,6 +31,11 @@ jobs:
           # Run E2E tests and generate a JSON report
           npm run test:e2e -- --json --outputFile=e2e-test-results.json
 
+      - name: Install xmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+
       - name: Parse unit test results for summary
         id: parse_unit_test
         run: |
