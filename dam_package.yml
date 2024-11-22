@@ -1,0 +1,35 @@
+name: Publish Packages on Merge
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Configure Git user
+      - name: Configure git user
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+      # Ensure the commit is from a merged pull request
+      - name: Check if PR was merged
+        id: check_pr_merge
+        run: |
+          # Check if the commit has a GitHub "merge" message
+          git log -1 --pretty=%B | grep -q "Merge pull request" || exit 1
+
+      # Publish to GitHub Packages - Release
+      - name: Publish to GitHub Packages - Release
+        if: success()
+        run: yarn release --yes
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

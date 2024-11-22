@@ -1,16 +1,9 @@
-name: Unit and Integration Tests with Full Report
+name: Unit, Integration, and E2E Tests with Full Report
 
 on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
-
-permissions:
-  pull-requests: write
-  contents: read
 
 jobs:
   test:
@@ -31,96 +24,77 @@ jobs:
       - name: Run unit tests and generate reports
         run: |
           # Run tests and generate coverage reports
-          npm test -- --coverage --coverageReporters=cobertura --json --outputFile=test-results.json
+          npm test -- --coverage --coverageReporters=cobertura --json --outputFile=unit-test-results.json
+
+      - name: Run E2E tests and generate reports
+        run: |
+          # Run E2E tests and generate a JSON report
+          npm run test:e2e -- --json --outputFile=e2e-test-results.json
 
       - name: Install xmllint
         run: |
           sudo apt-get update
           sudo apt-get install -y libxml2-utils
 
-      - name: Parse test results for summary
-        id: parse_test
+      - name: Parse unit test results for summary
+        id: parse_unit_test
         run: |
-          # Extract summary of test results
-          TOTAL_TESTS=$(jq '.numTotalTests' test-results.json)
-          PASSED_TESTS=$(jq '.numPassedTests' test-results.json)
-          FAILED_TESTS=$(jq '.numFailedTests' test-results.json)
-          SKIPPED_TESTS=$(jq '.numPendingTests' test-results.json)
+          # Extract summary of unit test results
+          TOTAL_TESTS=$(jq '.numTotalTests' unit-test-results.json)
+          PASSED_TESTS=$(jq '.numPassedTests' unit-test-results.json)
+          FAILED_TESTS=$(jq '.numFailedTests' unit-test-results.json)
+          SKIPPED_TESTS=$(jq '.numPendingTests' unit-test-results.json)
 
           # Format the test results as a markdown table
-          echo "### Unit Test Results Summary" > test_summary.md
-          echo "| Total Tests | Passed | Failed | Skipped |" >> test_summary.md
-          echo "|-------------|--------|--------|---------|" >> test_summary.md
-          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> test_summary.md
+          echo "### Unit Test Results Summary" > unit_test_summary.md
+          echo "| Total Tests | Passed | Failed | Skipped |" >> unit_test_summary.md
+          echo "|-------------|--------|--------|---------|" >> unit_test_summary.md
+          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> unit_test_summary.md
+
+      - name: Parse E2E test results for summary
+        id: parse_e2e_test
+        run: |
+          # Extract summary of E2E test results
+          TOTAL_TESTS=$(jq '.numTotalTests' e2e-test-results.json)
+          PASSED_TESTS=$(jq '.numPassedTests' e2e-test-results.json)
+          FAILED_TESTS=$(jq '.numFailedTests' e2e-test-results.json)
+          SKIPPED_TESTS=$(jq '.numPendingTests' e2e-test-results.json)
+
+          # Format the test results as a markdown table
+          echo "### E2E Test Results Summary" > e2e_test_summary.md
+          echo "| Total Tests | Passed | Failed | Skipped |" >> e2e_test_summary.md
+          echo "|-------------|--------|--------|---------|" >> e2e_test_summary.md
+          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> e2e_test_summary.md
 
       - name: Parse coverage report for summary
         id: parse_coverage
         run: |
-          # Extract line coverage percentage from cobertura XML
-          COVERAGE_PERCENT=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
-          COVERAGE_PERCENT=$(echo "$COVERAGE_PERCENT * 100" | bc)  # Convert to percentage
+          # Extract line and branch coverage percentage from Cobertura XML
+          LINE_COVERAGE=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
+          BRANCH_COVERAGE=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
 
-          # Format the coverage summary as a markdown table
+          # Convert to percentage and format to two decimal points
+          LINE_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$LINE_COVERAGE * 100" | bc)")
+          BRANCH_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$BRANCH_COVERAGE * 100" | bc)")
+
+          # Format the coverage summary as a Markdown table
           echo "### Coverage Summary" > coverage_summary.md
-          echo "|---------------|----------|" >> coverage_summary.md
-          echo "| Metric        | Coverage |" >> coverage_summary.md
-          echo "| Line Coverage | ${COVERAGE_PERCENT}% | | |" >> coverage_summary.md
-
-      - name: Parse detailed file-level coverage
-        id: parse_file_coverage
-        run: |
-          # Initialize file-level coverage markdown
-          echo "### Detailed Coverage Report by File" > file_coverage.md
-          echo "|------|------------|----------|-----------|-------|--------------------|" >> file_coverage.md
-          echo "| File | Statements | Branches | Lines | Uncovered Line #'s |" >> file_coverage.md
-
-          # Parse detailed coverage for each file
-          xmllint --xpath "//class" coverage/cobertura-coverage.xml | \
-          grep -oP 'filename="\K[^"]+' | \
-          while read -r file; do
-            # Log the current file being processed
-            echo "Processing file: $file"
-            
-            # Extract metrics for each file
-            stmts=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
-            branches=$(xmllint --xpath "string(//class[@filename='$file']/@branch-rate)" coverage/cobertura-coverage.xml)
-            funcs=$(xmllint --xpath "string(//class[@filename='$file']/@function-rate)" coverage/cobertura-coverage.xml)
-            lines=$(xmllint --xpath "string(//class[@filename='$file']/@line-rate)" coverage/cobertura-coverage.xml)
-            uncovered_lines=$(xmllint --xpath "string(//class[@filename='$file']/@uncovered-line)" coverage/cobertura-coverage.xml)
-
-            # Log extracted values for debugging
-            echo "Statements Rate: $stmts"
-            echo "Branches Rate: $branches"
-            echo "Lines Rate: $lines"
-            echo "Uncovered Lines: $uncovered_lines"
-            
-            # Convert rates to percentages
-            stmts_pct=$(echo "$stmts * 100" | bc)
-            branches_pct=$(echo "$branches * 100" | bc)
-            funcs_pct=$(echo "$funcs * 100" | bc)
-            lines_pct=$(echo "$lines * 100" | bc)
-
-            # Log percentages for debugging
-            echo "Statements Coverage: ${stmts_pct}%"
-            echo "Branches Coverage: ${branches_pct}%"
-            echo "Lines Coverage: ${lines_pct}%"
-
-            # Append to file-level coverage markdown
-            echo "| $file | ${stmts_pct}% | ${branches_pct}% | ${lines_pct}% | ${uncovered_lines} |" >> file_coverage.md
-          done
+          echo "| Metric          | Coverage |" >> coverage_summary.md
+          echo "|-----------------|----------|" >> coverage_summary.md
+          echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
+          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% |" >> coverage_summary.md
 
       - name: Combine summaries and post as PR comment
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Read summaries from files
-          TEST_SUMMARY=$(cat test_summary.md)
+          UNIT_TEST_SUMMARY=$(cat unit_test_summary.md)
+          E2E_TEST_SUMMARY=$(cat e2e_test_summary.md)
           COVERAGE_SUMMARY=$(cat coverage_summary.md)
-          FILE_COVERAGE=$(cat file_coverage.md)
 
           # Add a note indicating that this is the latest report
-          COMMENT_BODY="$TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n$FILE_COVERAGE\n\n**This is the latest test and coverage report.**"
+          COMMENT_BODY="$UNIT_TEST_SUMMARY\n\n$E2E_TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n**This is the latest test and coverage report.**"
 
           # Post comment on the PR or the push event (on PR or direct push)
           PR_NUMBER="${{ github.event.pull_request.number }}"

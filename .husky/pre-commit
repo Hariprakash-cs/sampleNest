@@ -1,0 +1,5 @@
+# .husky/pre-commit
+
+# Run additional tasks
+npm run format && npm run lint
+

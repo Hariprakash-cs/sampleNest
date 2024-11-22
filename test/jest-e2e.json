@@ -5,5 +5,13 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "collectCoverage": true,
+  "coverageDirectory": "./coverage/e2e",
+  "coverageReporters": ["text", "lcov"],
+  "coverageThreshold": {
+    "global": {
+      "lines": 1
+    }
   }
 }

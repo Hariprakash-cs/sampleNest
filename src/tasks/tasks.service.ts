@@ -1,8 +1,8 @@
-import { CreateTaskDto } from './dto/create-task.dto';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Task, TaskStatus } from './tasks.model';
-import { v4 as uuid } from 'uuid';
-import { GetTasksFilterDto } from './dto/get-tasks-filter.dto';
+import { CreateTaskDto } from "./dto/create-task.dto";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Task, TaskStatus } from "./tasks.model";
+import { v4 as uuid } from "uuid";
+import { GetTasksFilterDto } from "./dto/get-tasks-filter.dto";
 
 @Injectable()
 export class TasksService {
