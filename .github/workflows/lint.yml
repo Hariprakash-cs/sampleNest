@@ -29,22 +29,19 @@ jobs:
         run: |
           npm test -- --coverage --coverageReporters=cobertura --json --outputFile=unit-test-results.json
 
-      # Run E2E tests with coverage
-      - name: Run E2E tests and collect coverage
-        run: |
-          # Instrument the code and run E2E tests
-          npm run test:e2e
+      - name: Run E2E Tests with Coverage
+        run: npm run test:e2e -- --coverage
 
-      # Generate E2E coverage report
-      - name: Generate E2E coverage summary
+      - name: Summarize E2E Coverage Report
         id: e2e_coverage
         run: |
-          # Generate text-summary from E2E coverage
-          npx nyc report --reporter=text-summary > e2e-coverage-summary.txt
+          # Save text-summary to file
+          jest --config ./test/jest-e2e.json --coverage --coverageReporters=text-summary > e2e-coverage-summary.txt
 
           # Extract line coverage percentage
-          LINE_COVERAGE=$(grep 'Lines' e2e-coverage-summary.txt | awk '{print $4}')
-          echo "line_coverage=${LINE_COVERAGE}" >> $GITHUB_ENV
+          LINE_COVERAGE=$(grep 'Lines' e2e-coverage-summary.txt | awk '{print $2}' | sed 's/%//')
+          echo "E2E Line Coverage: $LINE_COVERAGE%"
+          echo "e2e_line_coverage=${LINE_COVERAGE}" >> $GITHUB_ENV
 
       # Parse unit test results for summary
       - name: Parse unit test results for summary
