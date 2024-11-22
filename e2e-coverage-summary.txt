@@ -1,0 +1,11 @@
+
+> nestjs-task-management@0.0.1 test:e2e
+> jest --config ./test/jest-e2e.json --coverage --coverageReporters=text-summary
+
+
+=============================== Coverage summary ===============================
+Statements   : Unknown% ( 0/0 )
+Branches     : Unknown% ( 0/0 )
+Functions    : Unknown% ( 0/0 )
+Lines        : Unknown% ( 0/0 )
+================================================================================

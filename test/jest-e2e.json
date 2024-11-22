@@ -8,5 +8,10 @@
   },
   "collectCoverage": true,
   "coverageDirectory": "./coverage/e2e",
-  "coverageReporters": ["text", "lcov"]
+  "coverageReporters": ["text", "lcov"],
+  "coverageThreshold": {
+    "global": {
+      "lines": 1
+    }
+  }
 }
