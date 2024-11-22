@@ -10,115 +10,88 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "18"
 
+      # Install dependencies
       - name: Install dependencies
         run: npm install
 
-      - name: Run unit tests and generate reports
+      # Run unit tests and generate reports
+      - name: Run unit tests and generate coverage
         run: |
-          # Run tests and generate coverage reports
           npm test -- --coverage --coverageReporters=cobertura --json --outputFile=unit-test-results.json
 
-      - name: Run E2E tests and generate reports
+      # Run E2E tests with coverage
+      - name: Run E2E tests and collect coverage
         run: |
-          # Run E2E tests and generate a JSON report
-          npm run test:e2e -- --json --outputFile=e2e-test-results.json
+          # Instrument the code and run E2E tests
+          npm run test:e2e
 
-      - name: Install xmllint
+      # Generate E2E coverage report
+      - name: Generate E2E coverage summary
+        id: e2e_coverage
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libxml2-utils
+          # Generate text-summary from E2E coverage
+          npx nyc report --reporter=text-summary > e2e-coverage-summary.txt
 
+          # Extract line coverage percentage
+          LINE_COVERAGE=$(grep 'Lines' e2e-coverage-summary.txt | awk '{print $4}')
+          echo "line_coverage=${LINE_COVERAGE}" >> $GITHUB_ENV
+
+      # Parse unit test results for summary
       - name: Parse unit test results for summary
         id: parse_unit_test
         run: |
-          # Extract summary of unit test results
+          # Extract unit test results
           TOTAL_TESTS=$(jq '.numTotalTests' unit-test-results.json)
           PASSED_TESTS=$(jq '.numPassedTests' unit-test-results.json)
           FAILED_TESTS=$(jq '.numFailedTests' unit-test-results.json)
           SKIPPED_TESTS=$(jq '.numPendingTests' unit-test-results.json)
 
-          # Format the test results as a markdown table
-          echo "### Unit Test Results Summary" > unit_test_summary.md
-          echo "| Total Tests | Passed | Failed | Skipped |" >> unit_test_summary.md
-          echo "|-------------|--------|--------|---------|" >> unit_test_summary.md
-          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> unit_test_summary.md
+          # Format as markdown
+          echo "### Unit Test Results" > unit-test-summary.md
+          echo "| Total | Passed | Failed | Skipped |" >> unit-test-summary.md
+          echo "|-------|--------|--------|---------|" >> unit-test-summary.md
+          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> unit-test-summary.md
 
-      - name: Parse E2E test results for summary
-        id: parse_e2e_test
+      # Parse E2E test coverage for summary
+      - name: Parse E2E test coverage for summary
+        id: parse_e2e_coverage
         run: |
-          # Extract summary of E2E test results
-          TOTAL_TESTS=$(jq '.numTotalTests' e2e-test-results.json)
-          PASSED_TESTS=$(jq '.numPassedTests' e2e-test-results.json)
-          FAILED_TESTS=$(jq '.numFailedTests' e2e-test-results.json)
-          SKIPPED_TESTS=$(jq '.numPendingTests' e2e-test-results.json)
+          # Read E2E coverage percentage from environment
+          LINE_COVERAGE=$LINE_COVERAGE
 
-          # Format the test results as a markdown table
-          echo "### E2E Test Results Summary" > e2e_test_summary.md
-          echo "| Total Tests | Passed | Failed | Skipped |" >> e2e_test_summary.md
-          echo "|-------------|--------|--------|---------|" >> e2e_test_summary.md
-          echo "| $TOTAL_TESTS | $PASSED_TESTS | $FAILED_TESTS | $SKIPPED_TESTS |" >> e2e_test_summary.md
+          # Format as markdown
+          echo "### E2E Coverage Results" > e2e-coverage-summary.md
+          echo "| Metric       | Coverage |" >> e2e-coverage-summary.md
+          echo "|--------------|----------|" >> e2e-coverage-summary.md
+          echo "| Line Coverage| ${LINE_COVERAGE} |" >> e2e-coverage-summary.md
 
-      - name: Parse coverage report for summary
-        id: parse_coverage
-        run: |
-          # Extract line and branch coverage percentage from Cobertura XML
-          LINE_COVERAGE=$(xmllint --xpath "string(//coverage/@line-rate)" coverage/cobertura-coverage.xml)
-          BRANCH_COVERAGE=$(xmllint --xpath "string(//coverage/@branch-rate)" coverage/cobertura-coverage.xml)
-
-          # Convert to percentage and format to two decimal points
-          LINE_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$LINE_COVERAGE * 100" | bc)")
-          BRANCH_COVERAGE_PERCENT=$(printf "%.2f" "$(echo "$BRANCH_COVERAGE * 100" | bc)")
-
-          # Format the coverage summary as a Markdown table
-          echo "### Coverage Summary" > coverage_summary.md
-          echo "| Metric          | Coverage |" >> coverage_summary.md
-          echo "|-----------------|----------|" >> coverage_summary.md
-          echo "| Line Coverage   | ${LINE_COVERAGE_PERCENT}% |" >> coverage_summary.md
-          echo "| Branch Coverage | ${BRANCH_COVERAGE_PERCENT}% |" >> coverage_summary.md
-
-      - name: Combine summaries and post as PR comment
+      # Combine summaries and post as PR comment
+      - name: Combine summaries and post comment
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Read summaries from files
-          UNIT_TEST_SUMMARY=$(cat unit_test_summary.md)
-          E2E_TEST_SUMMARY=$(cat e2e_test_summary.md)
-          COVERAGE_SUMMARY=$(cat coverage_summary.md)
+          # Combine test summaries
+          UNIT_SUMMARY=$(cat unit-test-summary.md)
+          E2E_SUMMARY=$(cat e2e-coverage-summary.md)
 
-          # Add a note indicating that this is the latest report
-          COMMENT_BODY="$UNIT_TEST_SUMMARY\n\n$E2E_TEST_SUMMARY\n\n$COVERAGE_SUMMARY\n\n**This is the latest test and coverage report.**"
+          COMMENT_BODY="$UNIT_SUMMARY\n\n$E2E_SUMMARY\n\n**This is the latest test and coverage report.**"
 
-          # Post comment on the PR or the push event (on PR or direct push)
+          # Post comment on the PR
           PR_NUMBER="${{ github.event.pull_request.number }}"
           if [ "$PR_NUMBER" != "" ]; then
-            # If it's a pull request, post the comment on the PR
-            RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
-               -H "Authorization: token $GITHUB_TOKEN" \
-               -H "Content-Type: application/json" \
-               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
-               "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments")
-          else
-            # If it's a push, post the comment on the commit
-            RESPONSE=$(curl -s -o response.txt -w "%{http_code}" \
-               -H "Authorization: token $GITHUB_TOKEN" \
-               -H "Content-Type: application/json" \
-               -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
-               "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments")
-          fi
-
-          if [ "$RESPONSE" -ne 201 ]; then
-            echo "Failed to post comment. HTTP Status: $RESPONSE"
-            echo "Response Body:"
-            cat response.txt
-            exit 1
-          else
-            echo "Comment posted successfully."
+            curl -s -o response.txt -w "%{http_code}" \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
           fi
